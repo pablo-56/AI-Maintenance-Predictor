@@ -46,7 +46,7 @@ function App() {
   const [csvError, setCsvError] = useState("");
 
   // ---- SHARED ASSET STATE FOR ALL OTHER PAGES ----
-  // Each asset: { id, type, torque_nm, air_temperature_k, tool_wear_min, failure_probability, risk_level }
+  // Each asset: { id, type, torque_nm, air_temperature_k, tool_wear_min, failure_probability, risk_level, main_recommendation }
   const [assets, setAssets] = useState([]);
 
   const handleChange = (e) => {
@@ -111,6 +111,8 @@ function App() {
           tool_wear_min: form.tool_wear_min,
           failure_probability: data.failure_probability,
           risk_level: data.risk_level,
+          // e.g. first recommendation title
+          main_recommendation: data.recommendations?.[0]?.title || null,
         };
 
         if (existingIndex !== -1) {
@@ -324,6 +326,19 @@ function App() {
                       : "Running smoothly"}
                   </span>
                 </div>
+
+                {asset.main_recommendation && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      fontStyle: "italic",
+                      opacity: 0.9,
+                    }}
+                  >
+                    Recommended: {asset.main_recommendation}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -532,7 +547,7 @@ function App() {
         minHeight: "100vh",
       }}
     >
-      
+      <h1>AI Maintenance Predictor Dashboard</h1>
 
       {/* Simple tab navigation */}
       <div
@@ -787,6 +802,63 @@ function App() {
                   />
                   <Legend />
                 </PieChart>
+
+                {result.recommendations &&
+                  result.recommendations.length > 0 && (
+                    <div style={{ marginTop: "1.5rem" }}>
+                      <h3>Recommended Actions</h3>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.75rem",
+                          marginTop: "0.5rem",
+                        }}
+                      >
+                        {result.recommendations.map((rec) => (
+                          <div
+                            key={rec.id}
+                            style={{
+                              padding: "0.75rem",
+                              borderRadius: 6,
+                              border: "1px solid #444",
+                              backgroundColor:
+                                rec.severity === "High"
+                                  ? "rgba(244, 67, 54, 0.15)"
+                                  : rec.severity === "Medium"
+                                  ? "rgba(255, 193, 7, 0.15)"
+                                  : "rgba(76, 175, 80, 0.12)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: 4,
+                              }}
+                            >
+                              <strong>{rec.title}</strong>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  padding: "2px 6px",
+                                  borderRadius: 999,
+                                  border: "1px solid #666",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {rec.severity}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 13, opacity: 0.9 }}>
+                              {rec.description}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </>
             )}
           </div>

@@ -115,3 +115,108 @@ def predict_failure(model, scaler, request: MaintenanceRequest):
 
     risk_level = risk_bucket(failure_probability)
     return failure_probability, risk_level
+
+
+
+# app/predict.py
+
+def generate_recommendations(features: dict, failure_prob: float) -> list[dict]:
+    """
+    features: the same dict you use to build X (air_temperature_k, torque_nm, etc.)
+    failure_prob: model predicted probability of failure (0..1)
+
+    Returns a list of recommended maintenance actions.
+    """
+    # assumes risk_level_from_prob(failure_prob) -> "Green" | "Yellow" | "Red"
+    risk = risk_bucket(failure_prob)
+    recs: list[dict] = []
+
+    # Baseline recommendation by risk band
+    if risk == "Green":
+        recs.append({
+            "id": "routine_monitoring",
+            "title": "Continue routine monitoring",
+            "severity": "Low",
+            "description": (
+                "Machine is healthy. Keep current inspection schedule and "
+                "log anomalies if any sensor drifts."
+            ),
+        })
+    elif risk == "Yellow":
+        recs.append({
+            "id": "plan_inspection",
+            "title": "Plan inspection in the next maintenance window",
+            "severity": "Medium",
+            "description": (
+                "Moderate failure risk. Schedule a targeted inspection and "
+                "review torque, temperature and tool wear."
+            ),
+        })
+        recs.append({
+            "id": "increase_sampling",
+            "title": "Increase sensor sampling & logging",
+            "severity": "Medium",
+            "description": (
+                "Increase sampling frequency to capture more signal before the "
+                "next run and refine the prediction."
+            ),
+        })
+    else:  # Red
+        recs.append({
+            "id": "urgent_shutdown",
+            "title": "Create urgent work order / consider shutdown",
+            "severity": "High",
+            "description": (
+                "High failure risk. Escalate to maintenance lead, evaluate "
+                "safe shutdown or immediate repair."
+            ),
+        })
+        recs.append({
+            "id": "check_spare_parts",
+            "title": "Verify spare parts availability",
+            "severity": "High",
+            "description": (
+                "Ensure critical spare parts are available (tooling, bearings, "
+                "critical components) before next run."
+            ),
+        })
+
+    # Optional: add sensor-specific hints
+    torque = float(features.get("torque_nm", 0))
+    wear = float(features.get("tool_wear_min", 0))
+    temp_diff = float(features.get("temperature_difference", 0))
+
+    if wear > 200:
+        recs.append({
+            "id": "replace_tool",
+            "title": "Inspect / replace tool",
+            "severity": "Medium",
+            "description": (
+                f"Tool wear is high ({wear:.1f} min). "
+                "Consider replacement or recalibration."
+            ),
+        })
+
+    if torque > 60:
+        recs.append({
+            "id": "review_load",
+            "title": "Review load & torque limits",
+            "severity": "Medium",
+            "description": (
+                f"Torque is elevated ({torque:.1f} Nm). "
+                "Verify load settings and mechanical constraints."
+            ),
+        })
+
+    if temp_diff > 12:
+        recs.append({
+            "id": "cooling_check",
+            "title": "Check cooling / lubrication",
+            "severity": "Medium",
+            "description": (
+                f"Temperature difference is high ({temp_diff:.1f} K). "
+                "Inspect cooling and lubrication systems."
+            ),
+        })
+
+    return recs
